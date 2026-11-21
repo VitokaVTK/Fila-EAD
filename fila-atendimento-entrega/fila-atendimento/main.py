@@ -61,11 +61,16 @@ class ClienteSaida(BaseModel):
     tipo_atendimento: Literal["N", "P"]
 
 
-class Cliente(ClienteSaida):
+class ClienteAtendimento(ClienteSaida):
+    """Dados do cliente incluindo o campo atendido (respostas do POST e do PUT)."""
+
+    atendido: bool = False
+
+
+class Cliente(ClienteAtendimento):
     """Registro completo armazenado na 'base de dados' (memória)."""
 
     id: int
-    atendido: bool = False
 
 
 class Mensagem(BaseModel):
@@ -128,7 +133,7 @@ def obter_cliente(id: int):
 
 @app.post(
     "/fila",
-    response_model=ClienteSaida,
+    response_model=ClienteAtendimento,
     status_code=status.HTTP_201_CREATED,
     summary="Adiciona cliente na fila",
 )
@@ -160,15 +165,17 @@ def adicionar_cliente(dados: ClienteEntrada):
     return novo
 
 
-@app.put("/fila", response_model=List[ClienteSaida], summary="Avança a fila")
+@app.put("/fila", response_model=List[ClienteAtendimento], summary="Avança a fila")
 def avancar_fila():
     """Diminui em 1 a posição de todos da fila. Quem estava na posição 1
-    vai para a posição 0 e é marcado como atendido. Retorna a fila atualizada."""
-    for cliente in fila_atual():
+    vai para a posição 0 e é marcado como atendido (atendido = true).
+    Retorna todos os clientes que foram atualizados."""
+    atualizados = fila_atual()
+    for cliente in atualizados:
         cliente.posicao -= 1
         if cliente.posicao == 0:
             cliente.atendido = True
-    return fila_atual()
+    return atualizados
 
 
 @app.delete(
